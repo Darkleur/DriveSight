@@ -1,0 +1,18 @@
+{
+  "name": "drivesight",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Real-time object detection in the browser with RF-DETR + Transformers.js, with precision benchmarking.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.1"
+  },
+  "devDependencies": {
+    "vite": "8.3.4"
+  }
+}

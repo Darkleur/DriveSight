@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.vite/
+
+# Large demo media stays out of the repo (see README)
+*.mp4
+*.webm
+*.mov
+
+.DS_Store
+Thumbs.db
+*.log

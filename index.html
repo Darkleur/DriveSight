@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DriveSight</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>DriveSight</h1>
+      <p>Real-time object detection in your browser with RF-DETR. No server, measured honestly.</p>
+    </header>
+
+    <main>
+      <p id="status" class="status">Starting…</p>
+
+      <!-- The image and the canvas are stacked: the canvas is a transparent layer on top for boxes. -->
+      <div class="stage">
+        <img id="image" src="/test-street.jpg" alt="Street scene used as a test image" />
+        <canvas id="overlay"></canvas>
+      </div>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

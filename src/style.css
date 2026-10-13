@@ -1,0 +1,69 @@
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --text: #e6e8ee;
+  --muted: #9aa1ad;
+  --accent: #4ade80;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+header,
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  color: var(--accent);
+}
+
+header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.status {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The media element sets the size; the canvas is stretched exactly over it. */
+.stage {
+  position: relative;
+  line-height: 0;
+}
+
+.stage img,
+.stage video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
