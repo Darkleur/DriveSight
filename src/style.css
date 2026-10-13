@@ -1,6 +1,7 @@
 :root {
   --bg: #0f1115;
   --panel: #181b22;
+  --border: #2a2f3a;
   --text: #e6e8ee;
   --muted: #9aa1ad;
   --accent: #4ade80;
@@ -9,6 +10,11 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Our display rules would otherwise override the `hidden` attribute. */
+[hidden] {
+  display: none !important;
 }
 
 body {
@@ -26,6 +32,10 @@ main {
   padding: 16px;
 }
 
+main {
+  padding-top: 0;
+}
+
 header h1 {
   margin: 0;
   font-size: 1.6rem;
@@ -37,6 +47,108 @@ header p {
   color: var(--muted);
 }
 
+/* ---------- Settings ---------- */
+
+.settings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.settings output {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+select {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+select:disabled {
+  opacity: 0.45;
+}
+
+input[type='range'] {
+  width: 100%;
+  margin: 8px 0 0;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Controls ---------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button,
+.button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+.button:hover:not([aria-disabled]) {
+  border-color: var(--muted);
+}
+
+button:disabled,
+.button[aria-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button.primary:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b0d10;
+  font-weight: 600;
+}
+
+/* ---------- Status + metrics ---------- */
+
 .status {
   margin: 0 0 12px;
   padding: 8px 12px;
@@ -46,18 +158,81 @@ header p {
   font-variant-numeric: tabular-nums;
 }
 
-/* The media element sets the size; the canvas is stretched exactly over it. */
+.warning {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid #b45309;
+  border-radius: 6px;
+  background: #2a1d0b;
+  color: #fbbf24;
+  font-size: 0.9rem;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.metrics small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.metrics div {
+  padding: 8px 12px;
+  background: var(--panel);
+  border-radius: 6px;
+}
+
+.metrics span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metrics strong {
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Stage: media + box overlay ---------- */
+
+.stage-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+/* The stage shrinks to the media's size, so the canvas (stretched over the stage) matches it exactly. */
 .stage {
   position: relative;
+  max-width: 100%;
   line-height: 0;
 }
 
 .stage img,
 .stage video {
   display: block;
-  width: 100%;
-  height: auto;
+  max-width: 100%;
+  max-height: 70vh;
   border-radius: 6px;
+  background: #000;
 }
 
 .stage canvas {

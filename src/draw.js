@@ -7,6 +7,10 @@ function colorFor(label) {
   return `hsl(${hash}, 85%, 55%)`;
 }
 
+export function clearDetections(canvas) {
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+}
+
 export function drawDetections(canvas, detections) {
   // Match the canvas's internal pixel grid to its on-screen size (times the screen's pixel
   // density, so lines stay sharp on phones and retina screens).

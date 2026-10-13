@@ -14,12 +14,61 @@
     </header>
 
     <main>
+      <section class="settings" aria-label="Model settings">
+        <label>
+          Model
+          <select id="model" disabled></select>
+        </label>
+        <label>
+          Precision
+          <select id="dtype" disabled></select>
+        </label>
+        <label>
+          Backend
+          <select id="device" disabled>
+            <option value="webgpu">WebGPU (GPU)</option>
+            <option value="wasm">WASM (CPU)</option>
+          </select>
+        </label>
+        <label>
+          <span>Confidence threshold <output id="threshold-value">0.50</output></span>
+          <input type="range" id="threshold" min="0.05" max="0.95" step="0.05" value="0.5" />
+        </label>
+      </section>
+
+      <section class="controls">
+        <div class="sources" role="group" aria-label="Input source">
+          <button type="button" data-source="test" disabled>Test image</button>
+          <button type="button" data-source="webcam" disabled>Webcam</button>
+          <!-- A <label> wrapping a file input opens the file picker on every browser, phones included. -->
+          <label class="button" data-source="video" aria-disabled="true">
+            Video file <input type="file" id="video-file" accept="video/*" hidden disabled />
+          </label>
+          <label class="button" data-source="image" aria-disabled="true">
+            Image file <input type="file" id="image-file" accept="image/*" hidden disabled />
+          </label>
+        </div>
+        <button type="button" id="toggle" class="primary" disabled>Start</button>
+      </section>
+
+      <p id="warning" class="warning" role="alert" hidden></p>
       <p id="status" class="status">Starting…</p>
 
-      <!-- The image and the canvas are stacked: the canvas is a transparent layer on top for boxes. -->
-      <div class="stage">
-        <img id="image" src="/test-street.jpg" alt="Street scene used as a test image" />
-        <canvas id="overlay"></canvas>
+      <section class="metrics" aria-label="Live metrics">
+        <div><span>FPS</span><strong id="m-fps">–</strong></div>
+        <div><span>Inference</span><strong id="m-ms">–</strong></div>
+        <div><span>Backend</span><strong id="m-backend">–</strong></div>
+        <div><span>Model size</span><strong id="m-size">–</strong></div>
+        <div><span>Load time</span><strong id="m-load">–</strong><small id="m-load-note"></small></div>
+      </section>
+
+      <!-- The media element sets the size; the canvas is a transparent layer on top for boxes. -->
+      <div class="stage-wrap">
+        <div class="stage">
+          <img id="image" alt="Input image" hidden />
+          <video id="video" muted playsinline loop hidden></video>
+          <canvas id="overlay"></canvas>
+        </div>
       </div>
     </main>
 

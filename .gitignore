@@ -2,6 +2,9 @@ node_modules/
 dist/
 .vite/
 
+# Local editor/agent settings
+.claude/
+
 # Large demo media stays out of the repo (see README)
 *.mp4
 *.webm
