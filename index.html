@@ -70,6 +70,63 @@
           <canvas id="overlay"></canvas>
         </div>
       </div>
+
+      <section class="benchmark" aria-labelledby="bench-title">
+        <h2 id="bench-title">Benchmark</h2>
+        <p class="hint">
+          Runs the same frames of the current video (or image) through each selected precision, using the model,
+          backend and threshold chosen above. Loading and warm-up are not timed. The first run downloads each
+          precision once.
+        </p>
+
+        <fieldset id="bench-settings" class="bench-settings">
+          <label>
+            Frames per precision
+            <select id="bench-frames">
+              <option>25</option>
+              <option selected>50</option>
+              <option>100</option>
+            </select>
+          </label>
+          <label>
+            Device name (shown in the table)
+            <input id="bench-device" type="text" maxlength="40" placeholder="e.g. ASUS laptop" />
+          </label>
+          <div class="bench-precisions">
+            <span>Precisions</span>
+            <div id="bench-precisions"></div>
+          </div>
+        </fieldset>
+
+        <div class="bench-actions">
+          <button type="button" id="bench-run" class="primary" disabled>Run benchmark</button>
+          <button type="button" id="bench-cancel" hidden>Cancel</button>
+        </div>
+        <p id="bench-progress" class="status" aria-live="polite">
+          Uses the current video or image. For driving numbers, pick a dashcam clip with "Video file" first.
+        </p>
+
+        <div class="table-wrap">
+          <table id="bench-table"></table>
+        </div>
+        <p class="hint">
+          <strong>FPS</strong> = 1000 / avg ms: how many frames per second the model alone could process.
+          <strong>Match fp32</strong> = share of the fp32 model's boxes (same label, overlap IoU ≥ 0.5) that this
+          precision also found on the same frames. It measures agreement with full precision, not accuracy: there
+          are no human-made labels here.
+        </p>
+
+        <div class="bench-actions">
+          <button type="button" id="bench-copy" disabled>Copy Markdown table</button>
+          <button type="button" id="bench-csv" disabled>Download CSV</button>
+          <button type="button" id="bench-json" disabled>Download JSON</button>
+          <button type="button" id="bench-clear" disabled>Clear results</button>
+        </div>
+        <details>
+          <summary>Markdown table (for the README)</summary>
+          <textarea id="bench-markdown" rows="8" readonly></textarea>
+        </details>
+      </section>
     </main>
 
     <script type="module" src="/src/main.js"></script>

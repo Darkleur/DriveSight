@@ -242,3 +242,127 @@ button.primary:not(:disabled) {
   height: 100%;
   pointer-events: none;
 }
+
+/* ---------- Benchmark ---------- */
+
+.benchmark {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.benchmark h2 {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+}
+
+.hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.bench-settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+  min-width: 0; /* fieldsets otherwise refuse to shrink below their content on small screens */
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+.bench-settings label,
+.bench-precisions > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.bench-settings input[type='text'] {
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+#bench-precisions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
+
+#bench-precisions label {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+}
+
+.bench-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* The table can be wider than a phone screen: it scrolls inside its box, not the whole page. */
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 8px;
+}
+
+#bench-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#bench-table th,
+#bench-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+#bench-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+#bench-table tr.broken td {
+  color: #fbbf24;
+}
+
+details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+textarea {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: 0.8rem ui-monospace, Consolas, monospace;
+}
+
+@media (max-width: 760px) {
+  .bench-settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

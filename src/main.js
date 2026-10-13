@@ -8,9 +8,13 @@ import {
   resetVideo,
   loadImage,
   objectUrlFor,
+  seekVideo,
   captureFrame,
 } from './sources.js';
 import { RollingStats } from './metrics.js';
+import { runBenchmark, BenchmarkCancelled } from './benchmark.js';
+import { loadResults, saveResults, renderTable, toMarkdown, toCsv, downloadFile } from './results.js';
+import { describeDevice } from './device-info.js';
 
 // Starting precision for each backend, picked from our measurements: on the GPU, fp32 is the
 // accurate reference; on the CPU, q8 is the fastest (8-bit integer math is cheap on CPUs).
@@ -43,6 +47,19 @@ const el = {
   image: $('image'),
   video: $('video'),
   overlay: $('overlay'),
+  benchSettings: $('bench-settings'),
+  benchFrames: $('bench-frames'),
+  benchDevice: $('bench-device'),
+  benchPrecisions: $('bench-precisions'),
+  benchRun: $('bench-run'),
+  benchCancel: $('bench-cancel'),
+  benchProgress: $('bench-progress'),
+  benchTable: $('bench-table'),
+  benchMarkdown: $('bench-markdown'),
+  benchCopy: $('bench-copy'),
+  benchCsv: $('bench-csv'),
+  benchJson: $('bench-json'),
+  benchClear: $('bench-clear'),
 };
 
 const state = {
@@ -56,6 +73,10 @@ const state = {
   loopId: 0, // changes on every start, so an old loop can tell it should quit
   stream: null, // the webcam stream, so we can switch the camera off
   detections: [], // last results, kept to redraw when the window resizes
+  mediaName: '', // name of the current video/image, recorded with benchmark results
+  benchmarking: false,
+  cancelRequested: false,
+  results: [], // benchmark result rows (also saved in localStorage)
 };
 const stats = new RollingStats(30);
 const frameCanvas = document.createElement('canvas'); // reused, resized to the model's input size
@@ -115,7 +136,8 @@ async function loadModel() {
   //   an empty screen. (fp16 on WebGPU does this on our test laptop.)
   setStatus('Warming up…');
   const { detections } = await detect(detector, captureFrame(testImage, frameCanvas), 0.5);
-  if (detections.length === 0) {
+  const sanityOk = detections.length > 0;
+  if (!sanityOk) {
     el.warning.textContent =
       `Warning: ${dtype} on ${device} found no objects in the built-in street test photo. ` +
       `Its results look broken on this device; try another precision.`;
@@ -132,6 +154,15 @@ async function loadModel() {
   el.load.textContent = `${(loadTimeMs / 1000).toFixed(1)} s`;
   el.loadNote.textContent = cached ? 'from cache' : 'incl. download';
   setStatus('Model ready');
+  return { detector, device, modelBytes, loadTimeMs, cached, sanityOk };
+}
+
+// Frees the current model and loads the one described by state.settings.
+async function swapModel() {
+  await whenIdle(); // let the frame that is being processed finish first
+  await state.detector?.dispose(); // free the old model's memory (GPU memory especially)
+  state.detector = null;
+  return loadModel();
 }
 
 // Swaps in a new model when the model, precision or backend changes.
@@ -145,10 +176,7 @@ async function changeModel() {
   stats.reset();
   showStats({ live: false });
   try {
-    await whenIdle(); // let the frame that is being processed finish first
-    await state.detector?.dispose(); // free the old model's memory (GPU memory especially)
-    state.detector = null;
-    await loadModel();
+    await swapModel();
   } finally {
     setLoading(false);
   }
@@ -178,8 +206,9 @@ async function selectSource(source, file) {
   state.detections = [];
   stats.reset();
   state.source = source;
+  state.mediaName = source === 'test' ? 'test-street.jpg' : source === 'webcam' ? 'webcam' : file.name;
   markActiveSource(source);
-  updateToggle();
+  updateButtons();
 
   if (isStill(source)) {
     showMedia('image');
@@ -215,7 +244,7 @@ function startLive() {
   state.running = true;
   state.loopId += 1;
   el.video.play().catch(onError);
-  updateToggle();
+  updateButtons();
   setStatus(`Live: ${state.source === 'webcam' ? 'webcam' : 'video file'}`);
   liveLoop(state.loopId);
 }
@@ -228,7 +257,7 @@ function stopLive() {
     stopWebcam(state.stream);
     state.stream = null;
   }
-  updateToggle();
+  updateButtons();
   setStatus('Stopped');
 }
 
@@ -251,6 +280,143 @@ async function liveLoop(myId) {
 
   // Wait for the next screen refresh before grabbing another frame.
   requestAnimationFrame(() => liveLoop(myId));
+}
+
+// ---------- Benchmark ----------
+
+const canBenchmark = () => Boolean(state.detector) && (state.source === 'video' || isStill(state.source));
+
+// Benchmark frame i. For a video: N frames spread evenly over the clip, so every precision sees
+// exactly the same frames and the comparison is fair. For an image: the image itself every time.
+async function benchmarkFrame(i, frameCount) {
+  if (state.source === 'video') {
+    await seekVideo(el.video, ((i + 0.5) / frameCount) * el.video.duration);
+    return captureFrame(el.video, frameCanvas);
+  }
+  return captureFrame(el.image, frameCanvas);
+}
+
+function mediaDescription() {
+  if (state.source === 'video') {
+    const { videoWidth, videoHeight, duration } = el.video;
+    return `${state.mediaName} (${videoWidth}x${videoHeight}, ${duration.toFixed(1)} s)`;
+  }
+  return `${state.mediaName} (${el.image.naturalWidth}x${el.image.naturalHeight})`;
+}
+
+async function startBenchmark() {
+  const dtypes = [...el.benchPrecisions.querySelectorAll('input:checked')].map((box) => box.value);
+  if (dtypes.length === 0) {
+    el.benchProgress.textContent = 'Pick at least one precision to benchmark.';
+    return;
+  }
+  if (state.source === 'video' && !Number.isFinite(el.video.duration)) {
+    throw new Error('This video has no known length, so frames cannot be picked. Try an MP4 file.');
+  }
+
+  const frameCount = Number(el.benchFrames.value);
+  const original = { ...state.settings };
+  const deviceInfo = await describeDevice();
+  // Recorded with every row, so each number can be traced back to how it was measured.
+  const context = {
+    device: el.benchDevice.value.trim() || `${deviceInfo.os} device`,
+    ...deviceInfo,
+    model: findModel(original.modelId).label,
+    media: mediaDescription(),
+    threshold: original.threshold,
+    date: new Date().toISOString(),
+  };
+
+  stopLive();
+  state.benchmarking = true;
+  state.cancelRequested = false;
+  setLoading(true);
+  try {
+    await runBenchmark({
+      dtypes,
+      frameCount,
+      threshold: original.threshold,
+      load: (dtype) => {
+        state.settings.dtype = dtype;
+        el.dtype.value = dtype;
+        return swapModel();
+      },
+      getFrame: (i) => benchmarkFrame(i, frameCount),
+      onFrame: ({ dtype, step, steps, frame, detections }) => {
+        drawDetections(el.overlay, detections); // not timed: just so you can watch it work
+        el.benchProgress.textContent = `Running ${dtype} (${step}/${steps}): frame ${frame}/${frameCount}`;
+      },
+      onResult: (row) => {
+        state.results.push({ ...context, ...row });
+        saveResults(state.results);
+        showResults();
+      },
+      isCancelled: () => state.cancelRequested,
+    });
+    el.benchProgress.textContent = `Done: ${dtypes.length} precision(s) × ${frameCount} frames.`;
+  } catch (err) {
+    if (!(err instanceof BenchmarkCancelled)) throw err;
+    el.benchProgress.textContent = 'Benchmark cancelled. Finished rows were kept.';
+  } finally {
+    // Put your own settings back.
+    state.settings = original;
+    el.dtype.value = original.dtype;
+    state.benchmarking = false;
+    try {
+      await swapModel();
+    } finally {
+      setLoading(false);
+    }
+  }
+  if (isStill(state.source)) await detectStill();
+  else setStatus('Benchmark finished. Press Start to play the video again.');
+}
+
+function showResults() {
+  renderTable(el.benchTable, state.results);
+  el.benchMarkdown.value = toMarkdown(state.results);
+  updateButtons();
+}
+
+async function copyMarkdown() {
+  try {
+    await navigator.clipboard.writeText(toMarkdown(state.results));
+    el.benchProgress.textContent = 'Markdown table copied to the clipboard.';
+  } catch {
+    // Some browsers (often on phones) block clipboard access: show the text to copy by hand.
+    el.benchMarkdown.closest('details').open = true;
+    el.benchMarkdown.select();
+    el.benchProgress.textContent = 'The browser blocked copying. Select the text below and copy it manually.';
+  }
+}
+
+function wireBenchmark() {
+  el.benchRun.addEventListener('click', () => startBenchmark().catch(onError));
+  el.benchCancel.addEventListener('click', () => {
+    state.cancelRequested = true;
+    updateButtons();
+    el.benchProgress.textContent = 'Cancelling after the current frame…';
+  });
+  el.benchCopy.addEventListener('click', copyMarkdown);
+  el.benchCsv.addEventListener('click', () => downloadFile('drivesight-results.csv', toCsv(state.results), 'text/csv'));
+  el.benchJson.addEventListener('click', () =>
+    downloadFile('drivesight-results.json', JSON.stringify(state.results, null, 2), 'application/json'),
+  );
+  el.benchClear.addEventListener('click', () => {
+    if (!confirm('Delete all benchmark results stored in this browser?')) return;
+    state.results = [];
+    saveResults(state.results);
+    showResults();
+  });
+  // Remember the device name between visits (a convenience; works without storage too).
+  try {
+    el.benchDevice.value = localStorage.getItem('drivesight.deviceName') ?? '';
+  } catch {}
+  el.benchDevice.addEventListener('change', () => {
+    try {
+      localStorage.setItem('drivesight.deviceName', el.benchDevice.value.trim());
+    } catch {}
+  });
 }
 
 // ---------- UI wiring ----------
@@ -284,6 +450,20 @@ function fillPrecisions() {
   const current = el.dtype.querySelector(`option[value="${state.settings.dtype}"]`);
   if (!current || current.disabled) state.settings.dtype = DEFAULT_DTYPE[state.settings.device];
   el.dtype.value = state.settings.dtype;
+
+  // The benchmark offers the same precisions as checkboxes (all usable ones ticked).
+  el.benchPrecisions.replaceChildren(
+    ...[...el.dtype.options].map((option) => {
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = option.value;
+      box.checked = !option.disabled;
+      box.disabled = option.disabled;
+      label.append(box, ` ${option.value}`);
+      return label;
+    }),
+  );
 }
 
 function showThreshold() {
@@ -296,13 +476,23 @@ function setLoading(on) {
     control.disabled = on;
   }
   for (const label of el.sourceLabels) label.toggleAttribute('aria-disabled', on);
-  updateToggle();
+  updateButtons();
 }
 
-function updateToggle() {
+// One place that decides which buttons are usable right now.
+function updateButtons() {
   const isVideoSource = state.source === 'webcam' || state.source === 'video';
   el.toggle.disabled = state.loading || !isVideoSource;
   el.toggle.textContent = state.running ? 'Stop' : 'Start';
+
+  el.benchSettings.disabled = state.loading; // a disabled <fieldset> disables everything inside it
+  el.benchRun.disabled = state.loading || !canBenchmark();
+  el.benchCancel.hidden = !state.benchmarking;
+  el.benchCancel.disabled = state.cancelRequested;
+  const noResults = state.results.length === 0;
+  for (const button of [el.benchCopy, el.benchCsv, el.benchJson, el.benchClear]) {
+    button.disabled = noResults || state.benchmarking;
+  }
 }
 
 function onError(err) {
@@ -376,6 +566,9 @@ function wireControls() {
 
 async function init() {
   wireControls();
+  wireBenchmark();
+  state.results = loadResults();
+  showResults();
   setLoading(true);
 
   state.webgpu = await checkWebGPU();

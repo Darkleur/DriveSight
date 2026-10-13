@@ -51,6 +51,15 @@ export function objectUrlFor(file) {
   return currentObjectUrl;
 }
 
+// Jumps the (paused) video to `time` seconds and resolves once that frame is ready to draw.
+export function seekVideo(videoEl, time) {
+  return new Promise((resolve, reject) => {
+    videoEl.addEventListener('seeked', resolve, { once: true });
+    videoEl.addEventListener('error', () => reject(new Error('Could not seek the video.')), { once: true });
+    videoEl.currentTime = time;
+  });
+}
+
 // Takes a snapshot of the current video frame (or image) at the model's input size.
 //
 // The model always works on a fixed-size square (384x384 for nano). Its own preprocessing
